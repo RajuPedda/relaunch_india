@@ -1,0 +1,28 @@
+# Render blueprint. One web service runs the Fastify API and serves the built
+# single-page app from the same process, so there is one URL and no CORS.
+#
+# Deploy: push this repository to GitHub, then on Render choose
+# New > Blueprint and point it at the repo. Everything below is picked up.
+services:
+  - type: web
+    name: relaunch-india
+    runtime: node
+    plan: free
+    region: singapore
+    # --include=dev is required: Render sets NODE_ENV=production, which would
+    # otherwise skip Vite and TypeScript and leave nothing to build the app with.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.20.0
+      # The local adapters: JSON files on the instance disk, an in-process event
+      # bus, the heuristic model, and an outbox instead of SES and WhatsApp.
+      - key: RELAUNCH_BACKEND
+        value: local
+      # Publish the seeded role on boot, so the first visitor lands on a live
+      # demo (an alert, a match report) instead of an unpublished draft.
+      - key: RELAUNCH_SEED_PUBLISHED
+        value: 'true'

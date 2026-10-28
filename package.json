@@ -1,0 +1,30 @@
+{
+  "name": "relaunch-india",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ReLaunch India - AI-assisted work capability, evidence and two-way job matching (AWS hackathon POC)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm -w @relaunch/api run dev",
+    "dev:web": "npm -w @relaunch/web run dev",
+    "seed": "npm -w @relaunch/api run seed",
+    "demo": "npm -w @relaunch/api run demo",
+    "test": "npm -w @relaunch/api run test",
+    "typecheck": "tsc -b packages/shared apps/api --pretty false && npm -w @relaunch/web run typecheck",
+    "build:web": "npm -w @relaunch/web run build",
+    "reset": "rm -rf .data .artifacts",
+    "build": "npm -w @relaunch/web run build",
+    "start": "npm -w @relaunch/api run start"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.2",
+    "typescript": "5.7.3"
+  }
+}

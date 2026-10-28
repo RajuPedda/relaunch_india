@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.data/
+.artifacts/
+*.tsbuildinfo
+.env
+.DS_Store
+.data-test/
+.artifacts-test/
