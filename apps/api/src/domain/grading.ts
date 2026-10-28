@@ -17,16 +17,60 @@ export async function gradeSubmission(
   checkResults: CheckResult[],
 ): Promise<{ findings: CriterionFinding[]; costUsd: number }> {
   const call = await model.complete({
-    system: `Apply the approved rubric for ${role.title}. Cite evidence. Recommend one correction per gap.`,
-    prompt: artifact.slice(0, 4000),
+    system: [
+      `You are applying an approved assessment rubric for the role: ${role.title}.`,
+      'Judge only what the artifact shows. Quote the artifact as evidence for every judgment.',
+      'Never infer anything about the person beyond this piece of work.',
+      'Reply with JSON only, no prose: {"findings":[{"criterionId":"...","score":0-4,',
+      '"evidenceQuote":"...","omissions":["..."],"recommendedCorrection":"..."}]}',
+    ].join(' '),
+    prompt: [
+      `Rubric criteria:`,
+      ...role.rubric.map((c) => `- ${c.id}: ${c.label}. ${c.description}`),
+      '',
+      `Acceptance conditions: ${task.acceptanceConditions.join('; ') || 'none stated'}`,
+      `Reference material ids: ${role.referenceMaterial.map((r) => r.id).join(', ') || 'none'}`,
+      `Sources the worker cited: ${submission.citedSources.join(', ') || 'none'}`,
+      `What the worker says they verified: ${String(submission.fields.verificationNotes ?? 'nothing stated')}`,
+      '',
+      'Artifact:',
+      artifact.slice(0, 6000),
+    ].join('\n'),
     purpose: `grade:${role.id}:${task.id}`,
   });
 
+  const analysis = parseFindings(call.text);
   const findings: CriterionFinding[] = [];
   for (const criterion of role.rubric) {
-    findings.push(buildFinding(criterion, role, task, submission, artifact, checkResults, call.confidence));
+    findings.push(buildFinding(
+      criterion, role, task, submission, artifact, checkResults,
+      call.confidence, analysis.get(criterion.id),
+    ));
   }
   return { findings, costUsd: call.costUsd };
+}
+
+export interface ModelFinding {
+  criterionId: string; score?: number; evidenceQuote?: string;
+  omissions?: string[]; recommendedCorrection?: string;
+}
+
+/** The model's reply is advisory. Anything unparseable is simply ignored. */
+function parseFindings(text: string): Map<string, ModelFinding> {
+  const map = new Map<string, ModelFinding>();
+  if (!text.trim()) return map;
+  try {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start === -1 || end <= start) return map;
+    const parsed = JSON.parse(text.slice(start, end + 1)) as { findings?: ModelFinding[] };
+    for (const finding of parsed.findings ?? []) {
+      if (finding?.criterionId) map.set(finding.criterionId, finding);
+    }
+  } catch {
+    // Keep the automated checks; a malformed reply changes nothing.
+  }
+  return map;
 }
 
 function buildFinding(
@@ -37,25 +81,31 @@ function buildFinding(
   artifact: string,
   checkResults: CheckResult[],
   modelConfidence: number,
+  analysis: ModelFinding | undefined,
 ): CriterionFinding {
   const own = checkResults.filter((r) => r.criterionId === criterion.id);
   const failed = own.filter((r) => !r.passed);
   const passedRatio = own.length ? (own.length - failed.length) / own.length : 0;
 
-  // Score band: observable checks drive it where they exist; where they do not,
-  // the finding is explicitly weaker and goes to a reviewer.
+  // Observable checks decide the score wherever they exist — a model does not
+  // overrule a test that ran. Where no check covers the criterion, the model's
+  // judgment is used if there is one, and the finding goes to a reviewer either
+  // way because nothing observable backs it.
   let score: number;
-  if (own.length === 0) {
-    score = 2;
-  } else {
+  if (own.length > 0) {
     score = Math.round(passedRatio * 4 * 10) / 10;
+  } else if (typeof analysis?.score === 'number' && analysis.score >= 0 && analysis.score <= 4) {
+    score = Math.round(analysis.score * 10) / 10;
+  } else {
+    score = 2;
   }
 
-  const omissions = failed.map((f) => f.detail);
-  const evidenceQuote = quoteFor(criterion, artifact, own);
-  const correction = failed.length
-    ? correctionFor(criterion, failed, role)
-    : `Keep the current approach for ${criterion.label.toLowerCase()}; extend it to the next comparable task.`;
+  const omissions = [...failed.map((f) => f.detail), ...(analysis?.omissions ?? [])];
+  const evidenceQuote = analysis?.evidenceQuote?.trim() || quoteFor(criterion, artifact, own);
+  const correction = analysis?.recommendedCorrection?.trim()
+    || (failed.length
+      ? correctionFor(criterion, failed, role)
+      : `Keep the current approach for ${criterion.label.toLowerCase()}; extend it to the next comparable task.`);
 
   const calibration = role.calibrationExamples.filter((c) => c.criterionId === criterion.id);
   const calibrationNote = calibration.length
@@ -78,7 +128,7 @@ function buildFinding(
     evidenceQuote,
     omissions,
     recommendedCorrection: correction,
-    source: own.length ? 'ai_assisted' : 'ai_assisted',
+    source: own.length && !analysis ? 'automated' : 'ai_assisted',
     needsHumanReview,
     calibrationNote,
   };

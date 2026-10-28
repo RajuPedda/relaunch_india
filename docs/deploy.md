@@ -67,6 +67,22 @@ Because no free tier offers a persistent disk, state is ephemeral wherever this
 goes. Render was chosen because it runs the real HTTP API unchanged — the same
 code path the AWS adapters would replace — rather than a reshaped copy of it.
 
+## Turning the AWS services on
+
+Each one is independent. Set the switch and its settings in `.env` locally, or as
+environment variables on the host. Leave a switch out and that concern stays local.
+
+| Service | Switch | What you need |
+| --- | --- | --- |
+| DynamoDB | `RELAUNCH_STORE=dynamodb` | A table with partition key `pk` (string) and sort key `sk` (string), on-demand billing. `DDB_TABLE_NAME` if not `relaunch-india`. IAM: `dynamodb:GetItem,PutItem,DeleteItem,Query` on the table. |
+| S3 | `RELAUNCH_ARTIFACTS=s3` | A private bucket. `S3_BUCKET` if not `relaunch-india-artifacts`. IAM: `s3:GetObject,PutObject` on `bucket/*`. |
+| EventBridge | `RELAUNCH_EVENTS=eventbridge` | A custom bus. `EVENT_BUS_NAME` if not `relaunch-india`. IAM: `events:PutEvents`. Events are published **and** handled in process, because the Lambda targets are not deployed here. |
+| Bedrock | `RELAUNCH_MODEL=bedrock` | Model access enabled in the region. `BEDROCK_MODEL_ID` to change the model. IAM: `bedrock:InvokeModel`. |
+| SES | `RELAUNCH_EMAIL=ses` | See below. |
+
+Credentials follow the standard AWS SDK chain: environment variables, an instance
+role, or `~/.aws/credentials`. Nothing in this repository ever holds a key.
+
 ## Amazon SES — the qualifying CDS call
 
 The hackathon requires the repository to use a Communication Developer Service

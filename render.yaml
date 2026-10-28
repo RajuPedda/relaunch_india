@@ -18,10 +18,11 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.20.0
-      # The local adapters: JSON files on the instance disk, an in-process event
-      # bus, the heuristic model, and an outbox instead of SES and WhatsApp.
-      - key: RELAUNCH_BACKEND
-        value: local
+      # Each AWS service is an independent switch, and every one defaults to a
+      # local implementation. Set a switch here and its credentials below to
+      # turn that service on; leave it out and the app still runs.
+      #   RELAUNCH_STORE=dynamodb  RELAUNCH_ARTIFACTS=s3
+      #   RELAUNCH_EVENTS=eventbridge  RELAUNCH_MODEL=bedrock
       # Publish the seeded role on boot, so the first visitor lands on a live
       # demo (an alert, a match report) instead of an unpublished draft.
       - key: RELAUNCH_SEED_PUBLISHED

@@ -65,6 +65,12 @@ used for offline development.
   artifact. Every model judgment carries a confidence; low confidence, a
   high-consequence role, or a missing calibration example routes the finding to
   a human reviewer instead of to the worker.
+- **Amazon DynamoDB, Amazon S3, Amazon EventBridge and Amazon Bedrock** — each
+  behind its own switch, each defaulting to a local implementation so the
+  journey also runs with no AWS account at all. `/api/health` reports which is
+  live. A service that is switched on but unreachable degrades rather than
+  disappearing: a failed Bedrock call leaves the automated checks in charge and
+  marks the finding for human review.
 - **Amazon EventBridge** — `job.published`, `job.changed`, `job.closed`,
   `assessment.completed`, `evidence.approved`, `application.submitted` and
   `application.updated`. Each rule recomputes the affected matches and notifies

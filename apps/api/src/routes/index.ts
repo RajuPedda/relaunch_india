@@ -3,7 +3,7 @@ import { newId, nowIso, type Application, type Assessment, type AuditEntry, type
 import { artifacts } from '../adapters/artifacts.js';
 import { bus } from '../adapters/bus.js';
 import { outbox } from '../adapters/messaging.js';
-import { config } from '../adapters/config.js';
+import { config, describeAdapters } from '../adapters/config.js';
 import { store } from '../domain/db.js';
 import { addCalibrationExample, aiDraftRoleConfig, approveRole, createRoleIntake, rejectRole } from '../domain/roles.js';
 import { assess, disputeAssessment, reviewAssessment } from '../domain/assessment.js';
@@ -15,7 +15,15 @@ import { releaseHeldNotifications } from '../domain/notifications.js';
 import { pilotReport } from '../domain/metrics.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/api/health', async () => ({ ok: true, backend: config.backend, at: nowIso() }));
+  app.get('/api/health', async () => ({
+    ok: true,
+    at: nowIso(),
+    adapters: {
+      store: config.store, artifacts: config.artifacts, events: config.events,
+      model: config.model, email: config.email,
+    },
+    summary: describeAdapters(),
+  }));
 
   /* ------------------------------ bootstrap ----------------------------- */
   app.get('/api/bootstrap', async () => ({

@@ -106,18 +106,33 @@ apps/web
   pages/            worker, employer, role configuration, review, measures, operations
 ```
 
-## Local adapters and their AWS counterparts
+## Five switches
 
-| Adapter | Local (this POC) | AWS (as proposed in the plan) |
-| --- | --- | --- |
-| `store` | JSON files in `.data/` | DynamoDB, single table `(pk, sk)` with the GSIs listed in `store.ts` |
-| `artifacts` | files in `.artifacts/` | S3 |
-| `bus` | in-process rules, same `source`/`name`/`detail` shape | EventBridge rules targeting Lambdas |
-| `llm` | deterministic heuristic model | Bedrock `InvokeModel`, or AgentCore for role intake |
-| `messaging` | outbox you can read in the UI | SES for email, End User Messaging Social for WhatsApp |
+Every AWS service is an independent switch, and every one defaults to a local
+implementation. With an empty `.env` the whole journey runs offline, with no AWS
+account. Turning one on never requires turning on another.
 
-Switching `RELAUNCH_BACKEND=aws` makes each adapter throw with the exact wiring note
-rather than pretending to work. See [docs/aws-architecture.md](docs/aws-architecture.md).
+| Switch | Default | Turn it on with | What then carries it |
+| --- | --- | --- | --- |
+| `RELAUNCH_STORE` | JSON files in `.data/` | `dynamodb` | DynamoDB, one table, partition key `pk`, sort key `sk` |
+| `RELAUNCH_ARTIFACTS` | files in `.artifacts/` | `s3` | S3, one bucket |
+| `RELAUNCH_EVENTS` | in-process rules | `eventbridge` | EventBridge `PutEvents`, and the rules still run in process |
+| `RELAUNCH_MODEL` | deterministic heuristic | `bedrock` | Bedrock `InvokeModel` for drafting, extraction and rubric feedback |
+| `RELAUNCH_EMAIL` | outbox you can read in the UI | `ses` | Amazon SES `SendEmail` |
+
+Copy [.env.example](.env.example) to `.env` and fill in only what you want. The app
+reads it at startup; values already in the environment win, so a host's own
+variables are never overwritten. `/api/health` reports which implementation is
+live for each concern, and so does one line in the startup log.
+
+A service that is switched on but unreachable degrades rather than disappearing:
+a failed Bedrock call leaves the automated checks in charge and marks the finding
+for review, a failed SES send is recorded with its reason and shown on the
+Operations screen, and a failed EventBridge put never stops the in-process rules.
+The one exception is the store, which is the app's state: if it is switched on and
+cannot be reached, the app says so plainly and stops rather than pretending.
+
+See [docs/aws-architecture.md](docs/aws-architecture.md).
 
 ## Honest limits
 
