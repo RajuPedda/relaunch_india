@@ -67,6 +67,28 @@ Because no free tier offers a persistent disk, state is ephemeral wherever this
 goes. Render was chosen because it runs the real HTTP API unchanged — the same
 code path the AWS adapters would replace — rather than a reshaped copy of it.
 
+## Amazon SES — the qualifying CDS call
+
+The hackathon requires the repository to use a Communication Developer Service
+at runtime. Email does, through `SesSender` in
+`apps/api/src/adapters/messaging.ts`. Set these on the Render service:
+
+| Variable | Value |
+| --- | --- |
+| `RELAUNCH_EMAIL` | `ses` |
+| `AWS_REGION` | the region where the identity is verified, e.g. `ap-south-1` |
+| `SES_FROM_ADDRESS` | a verified sender identity |
+| `SES_OVERRIDE_TO` | a verified recipient; all mail routes here while in the sandbox |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | an IAM user with `ses:SendEmail` only |
+
+In AWS: **SES > Identities** verify the sender and the recipient (a new account
+is in the sandbox, which only delivers to verified identities), then **IAM**
+create a user with an inline policy allowing `ses:SendEmail` on `*`.
+
+Leave `RELAUNCH_EMAIL` unset and email records to the local outbox instead, so
+the demo still runs with no AWS account. A send that fails never takes the
+journey down: it is recorded with its reason and shown on the Operations screen.
+
 ## Submission artifacts
 
 | Item | Where |

@@ -15,6 +15,8 @@ export const config = {
    * because confirming and publishing it is step one of the demo script.
    */
   seedPublished: process.env.RELAUNCH_SEED_PUBLISHED === 'true',
+  /** 'ses' sends email through Amazon SES; 'outbox' keeps it local. */
+  email: (process.env.RELAUNCH_EMAIL ?? 'outbox') as 'outbox' | 'ses',
   aws: {
     region: process.env.AWS_REGION ?? 'ap-south-1',
     tableName: process.env.DDB_TABLE_NAME ?? 'relaunch-india',
@@ -22,6 +24,8 @@ export const config = {
     eventBus: process.env.EVENT_BUS_NAME ?? 'relaunch-india',
     bedrockModelId: process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-sonnet-4-5-20250929-v1:0',
     sesFrom: process.env.SES_FROM_ADDRESS ?? 'no-reply@example.in',
+    /** SES sandbox only delivers to verified identities; route everything to one. */
+    sesOverrideTo: process.env.SES_OVERRIDE_TO ?? '',
     whatsappPhoneNumberId: process.env.EUM_SOCIAL_PHONE_NUMBER_ID ?? '',
   },
 };

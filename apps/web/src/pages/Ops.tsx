@@ -6,7 +6,10 @@ import {
   Chip, Empty, Eyebrow, Ledger, Panel, Record, Skeleton, Stat, StatBand, useAction, useAsync,
 } from '../components/ui.js';
 
-interface OutboxMessage { channel: string; to: string; subject: string; body: string; at: string; providerMessageId: string }
+interface OutboxMessage {
+  channel: string; to: string; subject: string; body: string;
+  at: string; providerMessageId: string; provider?: string; error?: string;
+}
 
 const CHANNEL = {
   whatsapp: { glyph: Icon.whatsapp, provider: 'End User Messaging Social' },
@@ -46,7 +49,11 @@ export function Ops({ profiles, orgs }: { profiles: Profile[]; orgs: Organizatio
         flush
       >
         <StatBand>
-          <Stat k="Delivered" v={(outbox.data ?? []).length} note="across WhatsApp, email and in-app" />
+          <Stat
+            k="Delivered"
+            v={(outbox.data ?? []).filter((m) => !m.error).length}
+            note={`${(outbox.data ?? []).filter((m) => m.provider === 'amazon-ses' && !m.error).length} through Amazon SES`}
+          />
           <Stat k="Held" v={held.length} note="quiet hours or a daily digest" />
           <Stat k="Suppressed" v={suppressed.length} note="preference, pause or duplicate" />
           <Stat k="Events" v={(events.data ?? []).length} note="on the bus" />
@@ -66,8 +73,14 @@ export function Ops({ profiles, orgs }: { profiles: Profile[]; orgs: Organizatio
                   <div className="head">
                     <Glyph />
                     <span className="subject grow">{m.subject}</span>
+                    {m.provider && (
+                      <Chip tone={m.provider === 'amazon-ses' ? 'accent' : 'outline'}>
+                        {m.provider}{m.providerMessageId ? ` · ${m.providerMessageId.slice(0, 12)}` : ''}
+                      </Chip>
+                    )}
                     <span className="small muted mono">{m.to}</span>
                   </div>
+                  {m.error && <div className="small" style={{ padding: '6px 12px', color: 'var(--st-notmet-fg)' }}>Delivery failed: {m.error}</div>}
                   <pre>{m.body}</pre>
                 </div>
               );

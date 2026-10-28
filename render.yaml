@@ -26,3 +26,21 @@ services:
       # demo (an alert, a match report) instead of an unpublished draft.
       - key: RELAUNCH_SEED_PUBLISHED
         value: 'true'
+      # Amazon SES carries email at runtime - the qualifying Communication
+      # Developer Service. Secrets are left unset here on purpose: enter them in
+      # the Render dashboard so they never enter the repository.
+      - key: RELAUNCH_EMAIL
+        value: ses
+      - key: AWS_REGION
+        value: ap-south-1
+      - key: SES_FROM_ADDRESS
+        sync: false
+      # While the SES account is in the sandbox, every recipient must be a
+      # verified identity. Set this to your verified address and all mail is
+      # routed there, with the intended recipient named in the subject.
+      - key: SES_OVERRIDE_TO
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false

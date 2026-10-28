@@ -49,11 +49,16 @@ process. Every AWS service sits behind an adapter interface, so the domain code
 is identical whether it runs against AWS or against the local implementations
 used for offline development.
 
-- **AWS End User Messaging Social (WhatsApp)** and **Amazon SES** — the
-  Communication Developer Services that carry every two-way exchange: job
-  alerts, match reports, clarification requests, interview offers and daily
-  digests. A correlation id on each outbound message routes an inbound reply
-  back to the right application thread.
+- **Amazon SES** — live at runtime. Every email the platform sends leaves
+  through `SendEmail` in `apps/api/src/adapters/messaging.ts`: job alerts, match
+  reports, clarification requests, interview offers and daily digests. Each send
+  carries an `EmailTags` correlation value that ties a reply back to its
+  application thread. The Operations screen shows the SES message id returned
+  for every delivery, and the reason for any that failed.
+- **AWS End User Messaging Social (WhatsApp)** — the same `MessageSender`
+  interface, with the WhatsApp implementation still recorded to the outbox in
+  this proof of concept rather than sent. The message bodies, the channel
+  routing and the correlation ids are in place.
 - **Amazon Bedrock** — three distinct uses: drafting a role configuration from
   an administrator's description of the work, extracting job requirements for
   employer confirmation, and applying the approved rubric to a submitted
@@ -131,8 +136,12 @@ Amazon S3
 - The domain logic, the guardrails, the matching, the delivery gate and the
   pilot measures are **fully implemented and tested**, and run identically
   against AWS or local adapters.
-- The repository ships **local adapter implementations** so the whole journey
-  runs with no AWS account. Which adapters are live in the deployed instance is
-  stated in `docs/deploy.md` and visible on the Operations screen, which shows
-  every message sent, held or suppressed and the reason for each.
+- **Amazon SES is live in the deployed instance** and is the qualifying
+  Communication Developer Service. Every other AWS service has a local adapter
+  so the journey also runs with no AWS account at all. Which adapter carried
+  which message is visible on the Operations screen, alongside everything held
+  or suppressed and the reason for each.
+- While the SES account is in the sandbox, mail is routed to one verified
+  address with the intended recipient named in the subject line. That is a
+  sandbox constraint, not a design choice.
 - Pre-existing work: none. This repository was written for this hackathon.
