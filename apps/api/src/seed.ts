@@ -7,6 +7,7 @@
 import { nowIso, type Job, type Organization, type Profile, type RoleConfig } from '@relaunch/shared';
 import { store } from './domain/db.js';
 import { confirmRequirements, draftJob, publishJob } from './domain/jobs.js';
+import { releaseHeldNotifications } from './domain/notifications.js';
 import { recordSelfReport } from './domain/evidence.js';
 import { registerEventRules } from './domain/wiring.js';
 
@@ -81,6 +82,10 @@ export async function seed({ reset = true, publish = false } = {}) {
     // is what sends the first alerts. Same path the Employer screen takes.
     await confirmRequirements(job.id, job.requirements, 'org_nirvana');
     const published = await publishJob(job.id, 'org_nirvana');
+    // The seeded alert must be on screen whatever the hour the instance booted.
+    // Quiet hours and digests still apply to everything the visitor does next;
+    // the released message keeps the reason it was held in its record.
+    await releaseHeldNotifications();
     return { orgs, profiles, job: published };
   }
 
