@@ -66,3 +66,12 @@ That is the same pair of commands Render runs. The app and the API are both on
 Because no free tier offers a persistent disk, state is ephemeral wherever this
 goes. Render was chosen because it runs the real HTTP API unchanged — the same
 code path the AWS adapters would replace — rather than a reshaped copy of it.
+
+## Submission artifacts
+
+| Item | Where |
+| --- | --- |
+| Architecture diagram | [architecture.svg](architecture.svg), [architecture.png](architecture.png) |
+| Text description | [submission.md](submission.md) |
+| Demo video script | [video-script.md](video-script.md) |
+| Deployed URL | the Render service created from `render.yaml` |
