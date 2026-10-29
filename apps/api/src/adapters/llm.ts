@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { config } from './config.js';
 
 export interface ModelCall {
@@ -44,35 +44,25 @@ export class BedrockModel implements Model {
 
   async complete(call: ModelCall): Promise<ModelResult> {
     try {
-      const response = await this.client.send(new InvokeModelCommand({
+      // Converse is provider-neutral, so BEDROCK_MODEL_ID can name an Anthropic, OpenAI or other model.
+      const response = await this.client.send(new ConverseCommand({
         modelId: this.id,
-        contentType: 'application/json',
-        accept: 'application/json',
-        body: JSON.stringify({
-          anthropic_version: 'bedrock-2023-05-31',
-          max_tokens: call.maxTokens ?? 1500,
-          temperature: 0,
-          system: call.system,
-          messages: [{ role: 'user', content: [{ type: 'text', text: call.prompt }] }],
-        }),
+        system: [{ text: call.system }],
+        messages: [{ role: 'user', content: [{ text: call.prompt }] }],
+        inferenceConfig: { maxTokens: call.maxTokens ?? 1500, temperature: 0 },
       }));
 
-      const payload = JSON.parse(new TextDecoder().decode(response.body)) as {
-        content?: { type: string; text?: string }[];
-        usage?: { input_tokens?: number; output_tokens?: number };
-        stop_reason?: string;
-      };
-      const text = (payload.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('');
+      const text = (response.output?.message?.content ?? []).map((c) => c.text ?? '').join('');
       const costUsd =
-        ((payload.usage?.input_tokens ?? 0) / 1000) * INPUT_USD_PER_1K +
-        ((payload.usage?.output_tokens ?? 0) / 1000) * OUTPUT_USD_PER_1K;
+        ((response.usage?.inputTokens ?? 0) / 1000) * INPUT_USD_PER_1K +
+        ((response.usage?.outputTokens ?? 0) / 1000) * OUTPUT_USD_PER_1K;
 
       return {
         text,
         modelId: this.id,
         costUsd: Math.round(costUsd * 100000) / 100000,
         // A truncated answer is not a confident one.
-        confidence: payload.stop_reason === 'max_tokens' ? 0.5 : 0.85,
+        confidence: response.stopReason === 'max_tokens' ? 0.5 : 0.85,
       };
     } catch (error) {
       // Falling back is safer than failing: the automated checks still run, and

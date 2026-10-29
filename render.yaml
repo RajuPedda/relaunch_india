@@ -34,6 +34,9 @@ services:
         value: ses
       - key: AWS_REGION
         value: ap-south-1
+      # Production model; only offered via the global profile. Development uses openai.gpt-oss-20b-1:0.
+      - key: BEDROCK_MODEL_ID
+        value: global.openai.gpt-6-luna
       - key: SES_FROM_ADDRESS
         sync: false
       # While the SES account is in the sandbox, every recipient must be a
